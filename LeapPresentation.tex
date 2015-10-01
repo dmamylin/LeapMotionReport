@@ -2,7 +2,6 @@
 
 \mode<presentation> {
 	\usetheme{Madrid}
-	%\setbeamertemplate{footline}
 }
 
 \usepackage{gensymb}
@@ -19,8 +18,7 @@
 
 \title{Leap Motion, карта глубин и OpenCV}
 
-% \author{}
-\institute[AIRLab]
+\institute[AI$\&$R Lab]
 {
 	\includegraphics[scale=0.15]{images/AIRLab_logo}
 	\medskip
@@ -83,14 +81,6 @@
 		\end{frame}
 		
 		\begin{frame}
-		    \frametitle{SGBM}
-		   
-		    \begin{center}
-				\includegraphics[scale=0.4]{images/raw0}
-				\includegraphics[scale=0.4]{images/raw1}
-			\end{center}
-		\end{frame}
-		\begin{frame}
 			\frametitle{Чем Leap Motion плох?}
 			
 			Цитата из интервью с одним из разработчиков:\\
@@ -118,10 +108,20 @@
 			
 			\begin{itemize}
 				\item Калибровка
+				\item Ректификация
 				\item Построение карты глубин (карты разностей/disparity map)
 				\item Построение облака точек
 				\item Blob detection
+				\item Нахождение расстояний до объектов и распознавание образов
 			\end{itemize}
+		\end{frame}
+		
+		\begin{frame}
+		    \frametitle{Этапы}
+
+		    \begin{center}
+				\includegraphics[scale=0.62]{images/stereoVisionPipeline}
+			\end{center}
 		\end{frame}
 		
 		\begin{frame}
@@ -136,7 +136,7 @@
 			\frametitle{Калибровка}
 			
 			Ниже представлена модель проективной камеры
-			\begin{equation}
+			\begin{equation*}
 			s
 			\begin{bmatrix}
 			u\\v\\1
@@ -155,11 +155,11 @@
 			\begin{bmatrix}
 			X\\Y\\Z\\1
 			\end{bmatrix}
-			\end{equation}
+			\end{equation*}
 		\end{frame}
 		
 		\begin{frame}
-			\frametitle{Внутренние параметры}
+			\frametitle{Калибровка: Внутренние параметры камер}
 			
 			\begin{center}
 			$
@@ -178,7 +178,7 @@
 		\end{frame}
 				
 		\begin{frame}
-			\frametitle{Внешние параметры}
+			\frametitle{Калибровка: Внешние параметры камер}
 			
 			\begin{center}
 			$
@@ -193,32 +193,49 @@
 		\end{frame}
 					
 		\begin{frame}
-			\frametitle{Другие переменные}
+			\frametitle{Калибровка: Другие переменные}
 			
 			$(X,Y,Z)$ - координаты исходной точки\\
 			$(u,v)$ - координаты на изображении\\
 			$s$ - переменная отвечающая за масштаб
+			
+			\begin{equation*}
+			s
+			\begin{bmatrix}
+			u\\v\\1
+			\end{bmatrix}
+			=
+			\begin{bmatrix}
+			f_{x}&0&c_{x}\\
+			0&f_{y}&c_{y}\\
+			0&0&1
+			\end{bmatrix}
+			\begin{bmatrix}
+			r_{11}&r_{11}&r_{11}&t_{1}\\
+			r_{21}&r_{22}&r_{23}&t_{2}\\
+			r_{31}&r_{32}&r_{33}&t_{3}
+			\end{bmatrix}
+			\begin{bmatrix}
+			X\\Y\\Z\\1
+			\end{bmatrix}
+			\end{equation*}
 		\end{frame}
 		
 		\begin{frame}
-			\frametitle{Калибровка при помощи openCV}
+			\frametitle{Калибровка: Использование openCV}
 			
 			Один из стандартных способов для калибровки - использование изображения 
 			шахматной доски.\\
 			В OpenCV есть несколько стандартных функций для калибровки с использованием 
 			шахматной доски и других шаблонов.
-		\end{frame}
-		
-		\begin{frame}
-		    \frametitle{Калибровка}
-		   
-		    \begin{center}
+			
+			\begin{center}
 				\includegraphics[scale=0.7]{images/leftCo2}
 			\end{center}
 		\end{frame}
 		
 		\begin{frame}
-			\frametitle{Полученные данные}
+			\frametitle{Калибровка: Полученные данные}
 			
 			\begin{itemize}
 				\item Матрицы камер - внутренние параметры камер
@@ -240,11 +257,20 @@
 		\end{frame}
 		
 		\begin{frame}
-		    \frametitle{Изображения с камер}
+		    \frametitle{Ректификация}
 		   
+		    Изображения с камер до ректификации:
+		    \vspace{-7mm}
+            \begin{center}
+				\includegraphics[scale=0.45]{images/raw0}
+		    	\includegraphics[scale=0.45]{images/raw1}
+			\end{center}
+		   
+		    Изображения с камер после ректификации:
+		    \vspace{-7mm}
 		    \begin{center}
-				\includegraphics[scale=0.4]{images/rectL}
-				\includegraphics[scale=0.4]{images/rectR}
+				\includegraphics[scale=0.45]{images/rectL}
+				\includegraphics[scale=0.45]{images/rectR}
 			\end{center}
 		\end{frame}
 		
@@ -259,10 +285,10 @@
 		\end{frame}
 		
 		\begin{frame}
-			\frametitle{Алгоритмы нахождения карт разностей в OpenCV}
+			\frametitle{Карта глубин}
 			
-			Существует несколько встроенных в OpenCV алгоритмов для нахождения разностных 
-			карт:
+			Существует несколько встроенных в OpenCV алгоритмов для нахождения карт               
+			глубин:
 			\begin{itemize}
 				\item StereoBM - быстро (доли секунд), много шумов
 				\item StereoSGBM - чуть медленней (все еще доли секунд), шумов меньше
@@ -274,7 +300,7 @@
 		
 		% TODO: дополнить описанием работы алгоритма
 		\begin{frame}
-			\frametitle{Описание алгоритма StereoSGBM}
+			\frametitle{Карта глубин: StereoSGBM}
 			
 			Получает на вход два изображения и некоторое количество параметров,
 			возвращает карту разностей. Путем подбора волшебных чисел и написания
@@ -283,37 +309,35 @@
 		\end{frame}
 		
 		\begin{frame}
-		    \frametitle{SGBM}
+		    \frametitle{Карта глубин: StereoSGBM}
 		   
 		    \begin{center}
+		    \includegraphics[scale=0.45]{images/rectL}
+				\includegraphics[scale=0.45]{images/rectR}
+				\newline\newline
 				\includegraphics[scale=0.7]{images/disp}
 			\end{center}
 		\end{frame}
 		
 		\begin{frame}
-		    \frametitle{SGBM with LUT}
-		   
-		    \begin{center}
-				\includegraphics[scale=0.7]{images/dispLUT}
-			\end{center}
-		\end{frame}
-		
-		\begin{frame}
-			\frametitle{Построение облака точек}
+			\frametitle{Облако точек}
 			
-			Следующий этап - построить облако точек - это массив
-			точек вида $(x, y, z)$ - координат относительно камеры, в
-			этом помогают функции из библиотеки OpenCV.\\
-			Затем запоминаются $z$-компоненты при разных расстояниях от камеры,
-			и по полученным значениям интерполируем функцию зависимости
-			расстояния до объекта от интенсивности цвета на карте глубин.
+			Затем по полученной карте глубин строится облако точек - массив
+			точек вида $(x, y, z)$, где $x, y$ - координаты точки на изображении, а
+			$z \in [0, 1]$ - значение яркости. В этом помогает OpenCV.\\
+			По полученным значениям мы интерполируем функцию зависимости расстояния до     
+			точки от яркости точки на изображении.
+			
+			\begin{center}
+				\includegraphics[scale=0.7]{images/leapPointCloud}
+			\end{center}
 		\end{frame}
 		
 		\begin{frame}
 			\frametitle{Blob detection}
 			
 			\textbf{Blob detection} - это нахождение регионов на изображении,
-			которые отличаются по каким-то свойствам, вроде цвета
+			которые не отличаются по каким-то свойствам, вроде цвета
 			или яркости, в сравнении с окружающими регионами.\\
 			Грубо говоря, blob (капля) - это регион изображения,
 			в котором какие-то свойства постоянны или почти
@@ -325,17 +349,32 @@
 		\begin{frame}
 			\frametitle{Blob detection}
 			
-			Следующий этап - применить blob detection к карте глубин.\\
+			На этом этапе мы применяем blob detection к карте глубин.\\
 			С этой задачей вновь помог справиться OpenCV.\\
 			Алгоритм, реализованный в OpenCV, таков:\\
 			\begin{itemize}
 				\item Конвертируем "бинарное" изображение - только
 					  из черного и белого цветов по заданным извне границам
 				\item Извлекаем компоненты связности
+				\item Убираем слишком маленькие компоненты
 				\item Группируем центры компонент - близкие компоненты относятся к одному 
 				      blob'у
 				\item По полученным группам получаем результирующую позицию blob'а
 			\end{itemize}
+		\end{frame}
+		
+		\begin{frame}
+            \frametitle{Blob detection}		
+		
+			\begin{center}
+				\includegraphics[scale=0.28]{images/blobDetectionPipeline}
+			\end{center}
+		\end{frame}
+		
+		\begin{frame}
+		    \begin{center}
+				Спасибо за внимание.
+			\end{center}
 		\end{frame}
 
 \end{document} 
